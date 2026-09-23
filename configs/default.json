@@ -1,0 +1,336 @@
+{
+  "schema_version": "1.0",
+  "status": "IMPLEMENTATION_SCAFFOLD_NO_REAL_DATA",
+  "purpose": "本地实现使用的参数合同；未读取实际附件、未训练",
+  "source_spec": "多模态情感建模_执行Spec.md",
+  "source_spec_version": "1.0",
+  "source_plan": "多模态情感建模_逐步实验方案.md",
+  "source_plan_version": "1.0",
+  "paths_to_fill_at_E00": {
+    "attachment1": null,
+    "attachment2": null,
+    "attachment3": null,
+    "attachment4": null,
+    "project_root": null
+  },
+  "data": {
+    "feature_version": "official_aligned50",
+    "text_source": "text",
+    "sequence_length": 50,
+    "dimensions": {
+      "T": 768,
+      "A": 74,
+      "V": 35
+    },
+    "class_order": [
+      "Negative",
+      "Neutral",
+      "Positive"
+    ],
+    "label_rule": "y<0:Negative; y==0:Neutral; y>0:Positive",
+    "valid_mask_source": "MUST_VERIFY_AT_E01",
+    "normalization_fit_split": "train",
+    "normalization_ddof": 0,
+    "normalization_positions": "valid AND originally_observed",
+    "zero_variance_scale": 1.0,
+    "missing_fill_after_normalization": 0.0,
+    "nonfinite_policy": "invalidate_entire_modality_row_and_log_separately",
+    "raw_text_and_text_bert_as_predictor_input": false,
+    "split_policy": "keep_official",
+    "test_labels_locked_until": "E13"
+  },
+  "model": {
+    "hidden_dim": 128,
+    "projection": [
+      "Linear",
+      "LayerNorm",
+      "GELU"
+    ],
+    "gate_shared_between_modalities": true,
+    "gate_dimensions": [
+      132,
+      32,
+      1
+    ],
+    "gate_input": "128D modality representation + 1D visible ratio + 3D observed state",
+    "state_projection": {
+      "in": 3,
+      "out": 128,
+      "bias": false
+    },
+    "position_encoding": "fixed_sinusoidal",
+    "temporal_layers": 2,
+    "attention_heads": 4,
+    "feedforward_dim": 256,
+    "activation": "gelu",
+    "norm_first": true,
+    "layernorm_epsilon": 1e-05,
+    "dropout": 0.2,
+    "final_layernorm": true,
+    "pooling": "valid_position_mean",
+    "heads_hidden_dim": 64,
+    "regression_output": "3*tanh(raw)",
+    "baseline_mlp_hidden_dims": [
+      128,
+      128
+    ],
+    "all_missing_position": "learned_128D_vector",
+    "all_invalid_sample": "train_class_prior_and_train_regression_mean_with_flag",
+    "parameter_budget_max": 1200000
+  },
+  "training": {
+    "seed_execution_order": [
+      42,
+      17,
+      2026
+    ],
+    "model_execution_order": [
+      "B3",
+      "B4",
+      "M0",
+      "M1",
+      "B5",
+      "B0",
+      "B1",
+      "B2"
+    ],
+    "batch_size": 32,
+    "drop_last": false,
+    "precision": "float32",
+    "automatic_mixed_precision": false,
+    "optimizer": "AdamW",
+    "learning_rate": 0.0001,
+    "weight_decay": 0.0001,
+    "scheduler": null,
+    "gradient_clip_norm": 1.0,
+    "max_epochs": 60,
+    "loss": {
+      "cross_entropy": 1.0,
+      "smooth_l1": 1.0,
+      "smooth_l1_beta": 1.0,
+      "class_weights": null,
+      "pearson_loss": 0.0,
+      "reconstruction_default": 0.0,
+      "consistency_default": 0.0
+    },
+    "early_stop": {
+      "patience": 8,
+      "min_delta": 0.0001,
+      "score": "0.5*MAE_clean+(0.5/6)*sum(MAE_each_30pct_middle_condition)",
+      "tie": "earlier_epoch",
+      "first_finite_epoch_saved": true
+    },
+    "mask_randomness_independent_of_shuffle_and_model": true,
+    "nan_inf_policy": "fail_run_save_ids_no_batch_skipping",
+    "submission_seed": 42
+  },
+  "corruption": {
+    "protocol_version": "mask-v1",
+    "rng": "numpy.PCG64",
+    "rng_seed": "SHA256(key) first 8 bytes interpreted as unsigned big-endian integer",
+    "training_key": "mask-v1|train|seed|epoch|sample_id",
+    "draw_order": [
+      "training_type",
+      "modality_combination",
+      "ratio",
+      "sharing_mode",
+      "start"
+    ],
+    "type_probabilities": {
+      "none": 0.3,
+      "local_span": 0.6,
+      "whole_modality": 0.1
+    },
+    "local_combinations": [
+      "T",
+      "A",
+      "V",
+      "TA",
+      "TV",
+      "AV",
+      "TAV"
+    ],
+    "whole_modality_combinations": [
+      "T",
+      "A",
+      "V",
+      "TA",
+      "TV",
+      "AV"
+    ],
+    "ratios": [
+      0.1,
+      0.2,
+      0.3,
+      0.4,
+      0.5
+    ],
+    "length_rounding": "Python_round_ties_to_even; max(1,round(r*L))",
+    "ratio_units": "stored_numeric_ratios_0_to_1; scenario_percent_labels_divide_by_100_before_calculation",
+    "zero_valid_length": "all_false_corruption_mask; no_start; actual_ratio_null; keep_prior_prediction",
+    "shared_probability_for_two_modalities": 0.5,
+    "tav_always_shared": true,
+    "only_originally_observed_positions": true,
+    "valid_mask_never_changed": true
+  },
+  "evaluation": {
+    "fixed_random_seed": 3407,
+    "main_types": [
+      "T",
+      "A",
+      "V",
+      "TA",
+      "TV",
+      "AV"
+    ],
+    "positions": [
+      "front",
+      "middle",
+      "back"
+    ],
+    "main_count": 90,
+    "tav_count": 15,
+    "async_types": [
+      "TA",
+      "TV",
+      "AV"
+    ],
+    "async_ratio": 0.3,
+    "async_replicates": 3,
+    "async_count": 9,
+    "clean_count": 1,
+    "total_views_per_run": 115,
+    "early_stop_types": [
+      "T",
+      "A",
+      "V",
+      "TA",
+      "TV",
+      "AV"
+    ],
+    "early_stop_ratio": 0.3,
+    "early_stop_position": "middle",
+    "metrics": [
+      "Accuracy_3class",
+      "Macro_F1",
+      "Weighted_F1",
+      "per_class_precision_recall_F1",
+      "MAE",
+      "Pearson"
+    ],
+    "f1_zero_division": 0,
+    "undefined_pearson": null,
+    "seed_std_ddof": 1,
+    "bootstrap_unit": "video_id",
+    "bootstrap_replicates": 1000
+  },
+  "selection": {
+    "candidate_ids": [
+      "B3",
+      "B4",
+      "B5",
+      "M0",
+      "M1"
+    ],
+    "primary": "three_seed_mean_of_equal_weight_90_condition_MAE",
+    "clean_mae_max_relative_to_B3": 1.05,
+    "clean_macro_f1_max_absolute_drop_from_B3": 0.02,
+    "primary_near_tie_tolerance": 0.001,
+    "tie_breaks": [
+      "higher_main_macro_f1",
+      "fewer_parameters"
+    ],
+    "fallback_if_no_augmented_candidate_eligible": "B3",
+    "no_special_test_selection": true,
+    "baseline_rule": "If no complex candidate B5/M0/M1 improves on B4 and B4 meets both clean guards, select B4; otherwise select the lowest-R eligible candidate; if no augmented candidate passes clean guards, fall back to B3."
+  },
+  "explanation": {
+    "valid_max_samples": 100,
+    "valid_selection_seed": 3407,
+    "valid_selection": "true_class_stratified_before_training",
+    "target_class": "fixed_original_argmax",
+    "window_length": 3,
+    "short_sequence_window": "min(3,L)",
+    "stride": 1,
+    "top_nonoverlap_windows_per_modality": 3,
+    "rank": "sum_of_single_position_absolute_probability_delta; tie_by_start",
+    "joint_window_re_evaluation": true,
+    "random_matches_per_window": 10,
+    "random_match": [
+      "modality",
+      "length",
+      "valid_count",
+      "observed_count"
+    ],
+    "random_may_overlap_selected_window": true,
+    "perturbation_batch_size": 32,
+    "zero_sum_epsilon": 1e-08,
+    "dominant_modality_tie_tolerance": 1e-06,
+    "max_base_equivalent_forwards": 163,
+    "max_extra_valid_random_forwards": 90,
+    "unverified_time_value": null
+  },
+  "q1": {
+    "feature_version": "q1_equal_time50_bert_egemaps_openface_v1",
+    "expected_samples": 100,
+    "time_bins": 50,
+    "dimensions": {
+      "T": 768,
+      "A": 25,
+      "V": 29
+    },
+    "audio_sample_rate": 16000,
+    "audio_channels": 1,
+    "time_origin": "first_presented_video_frame",
+    "text_model": "google-bert/bert-base-uncased",
+    "ctc_candidate_model": "facebook/wav2vec2-base-960h",
+    "model_revisions": "MUST_LOCK_AT_E00_E05",
+    "text_model_frozen_and_eval": true,
+    "audio_features": "eGeMAPSv02_LowLevelDescriptors",
+    "vision_confidence_min": 0.8,
+    "vision_success_required": true,
+    "target_face_rule": "longest_track_duration_then_largest_mean_face_area_then_track_id",
+    "unconfirmed_speaker_flag": "speaker_ambiguous",
+    "empty_text_window": "zero_placeholder; no_speech_only_with_verified_evidence_else_alignment_unavailable",
+    "audio_and_ctc_clock": "convert_to_video_clock_using_recorded_output_audio_origin",
+    "duration_source": "actual_video_presentation_interval_with_last_frame_duration_source",
+    "manual_sample_count": 10,
+    "manual_min_boundaries_per_sample": 3,
+    "manual_median_abs_error_target_seconds": 0.2,
+    "not_compatible_with_official_features": true
+  },
+  "optional": {
+    "enabled": false,
+    "M2": {
+      "reconstruction_lambda": 0.1,
+      "target": "fixed_normalized_input",
+      "feed_reconstruction_back": false
+    },
+    "M3": {
+      "consistency_lambda": 0.1,
+      "teacher": "same_seed_M0_best",
+      "teacher_frozen_eval": true,
+      "temperature": 1.0
+    },
+    "M4": {
+      "requires": [
+        "M2_retained",
+        "M3_retained"
+      ]
+    },
+    "min_primary_mae_improvement": 0.001,
+    "pilot_comparison": "R_42_vs_M1_R_42_and_clean_guard_vs_B3_seed42",
+    "final_comparison": "three_seed_mean_R_vs_M1_and_three_seed_clean_guard",
+    "final_nondegrading_seed_count_min": 2,
+    "max_extra_training_runs": 12
+  },
+  "budget": {
+    "default_core_runs": 24,
+    "default_including_all_optional_max": 36,
+    "search_route_core_runs": 48,
+    "search_route_including_optional_max": 60,
+    "debug_and_failed_runs_counted_separately": true,
+    "submission_target_bytes": 45000000,
+    "submission_max_bytes": 50000000
+  }
+}
